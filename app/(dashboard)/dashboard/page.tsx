@@ -1,0 +1,819 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+
+interface CreateProjectModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (projectData: {
+    name: string;
+    priority: string;
+    startDate: string;
+    endDate: string;
+    collaborators: string[];
+  }) => void;
+}
+
+function CreateProjectModal({ isOpen, onClose, onSubmit }: CreateProjectModalProps) {
+  const [projectName, setProjectName] = useState('');
+  const [priority, setPriority] = useState('medium');
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState('');
+  const [collaboratorInput, setCollaboratorInput] = useState('');
+  const [collaborators, setCollaborators] = useState<string[]>([]);
+
+  const handleAddCollaborator = () => {
+    const email = collaboratorInput.trim();
+    if (email && !collaborators.includes(email)) {
+      setCollaborators([...collaborators, email]);
+      setCollaboratorInput('');
+    }
+  };
+
+  const handleRemoveCollaborator = (email: string) => {
+    setCollaborators(collaborators.filter((c) => c !== email));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (projectName.trim()) {
+      onSubmit({
+        name: projectName,
+        priority,
+        startDate,
+        endDate,
+        collaborators,
+      });
+      setProjectName('');
+      setPriority('medium');
+      setStartDate(new Date().toISOString().split('T')[0]);
+      setEndDate('');
+      setCollaborators([]);
+      setCollaboratorInput('');
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddCollaborator();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className="fixed create-project-modal inset-0 flex items-center justify-center z-50 h-screen"
+      onClick={handleOverlayClick}
+    >
+      <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">Create New Project</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              Project Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              placeholder="Enter project name"
+              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              autoFocus
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              Priority
+            </label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Today by default</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              Collaborators
+            </label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="email"
+                value={collaboratorInput}
+                onChange={(e) => setCollaboratorInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Enter email address"
+                className="flex-1 px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <button
+                type="button"
+                onClick={handleAddCollaborator}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              >
+                Add
+              </button>
+            </div>
+            {collaborators.length > 0 && (
+              <div className="space-y-2">
+                {collaborators.map((collab) => (
+                  <div
+                    key={collab}
+                    className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2"
+                  >
+                    <span className="text-sm text-zinc-900 dark:text-white">{collab}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCollaborator(collab)}
+                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-semibold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 justify-end pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!projectName.trim()}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-lg font-medium transition-colors"
+            >
+              Create Project
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+interface Project {
+  _id: string;
+  name: string;
+  description: string;
+  status: 'active' | 'archived' | 'completed';
+  creator: string;
+  isContributing: boolean;
+  isPinned: boolean;
+  recentlyViewed: boolean;
+  taskCount: number;
+  teamMembers: number;
+  daysUntilDeadline?: number;
+  requiresAction: boolean;
+  updatedAt: string;
+}
+
+interface UserAnalytics {
+  projectsCreated: number;
+  tasksCompleted: number;
+  contributions: number;
+  productivityScore: number;
+  avgCompletionTime: string;
+  streak: number;
+}
+
+interface ActivityItem {
+  id: string;
+  type: 'project' | 'task' | 'comment' | 'member';
+  title: string;
+  description: string;
+  timestamp: string;
+  icon: string;
+}
+
+interface NotificationItem {
+  id: string;
+  type: 'deadline' | 'mention' | 'assignment' | 'update' | 'system';
+  title: string;
+  description: string;
+  read: boolean;
+  timestamp: string;
+  actionUrl?: string;
+}
+
+export default function DashboardPage() {
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
+
+  // Sample data - in a real app, this would come from your API
+  const [projects, setProjects] = useState<Project[]>([
+    {
+      _id: '1',
+      name: 'Website Redesign',
+      description: 'Complete redesign of the company website',
+      status: 'active',
+      creator: 'You',
+      isContributing: true,
+      isPinned: true,
+      recentlyViewed: true,
+      taskCount: 24,
+      teamMembers: 5,
+      daysUntilDeadline: 5,
+      requiresAction: true,
+      updatedAt: '2025-12-02',
+    },
+    {
+      _id: '2',
+      name: 'Mobile App Development',
+      description: 'Build a native mobile application',
+      status: 'active',
+      creator: 'John Doe',
+      isContributing: true,
+      isPinned: false,
+      recentlyViewed: true,
+      taskCount: 18,
+      teamMembers: 4,
+      daysUntilDeadline: 12,
+      requiresAction: false,
+      updatedAt: '2025-12-01',
+    },
+    {
+      _id: '3',
+      name: 'Backend API Enhancement',
+      description: 'Improve API performance',
+      status: 'active',
+      creator: 'You',
+      isContributing: true,
+      isPinned: false,
+      recentlyViewed: false,
+      taskCount: 12,
+      teamMembers: 3,
+      daysUntilDeadline: 3,
+      requiresAction: true,
+      updatedAt: '2025-11-28',
+    },
+    {
+      _id: '4',
+      name: 'Database Migration',
+      description: 'Migrate to modern cloud solution',
+      status: 'completed',
+      creator: 'You',
+      isContributing: true,
+      isPinned: false,
+      recentlyViewed: false,
+      taskCount: 8,
+      teamMembers: 2,
+      requiresAction: false,
+      updatedAt: '2025-11-30',
+    },
+    {
+      _id: '5',
+      name: 'Security Audit',
+      description: 'Comprehensive security review',
+      status: 'active',
+      creator: 'Jane Smith',
+      isContributing: true,
+      isPinned: true,
+      recentlyViewed: false,
+      taskCount: 15,
+      teamMembers: 3,
+      daysUntilDeadline: 8,
+      requiresAction: true,
+      updatedAt: '2025-12-02',
+    },
+    {
+      _id: '6',
+      name: 'Old Project Archive',
+      description: 'Legacy system documentation',
+      status: 'archived',
+      creator: 'You',
+      isContributing: false,
+      isPinned: false,
+      recentlyViewed: false,
+      taskCount: 0,
+      teamMembers: 1,
+      requiresAction: false,
+      updatedAt: '2025-10-01',
+    },
+  ]);
+
+  const userAnalytics: UserAnalytics = {
+    projectsCreated: 8,
+    tasksCompleted: 127,
+    contributions: 342,
+    productivityScore: 94,
+    avgCompletionTime: '2.3 days',
+    streak: 12,
+  };
+
+  const activityItems: ActivityItem[] = [
+    {
+      id: '1',
+      type: 'task',
+      title: 'Completed task "Setup Database"',
+      description: 'In Backend API Enhancement',
+      timestamp: '2 hours ago',
+      icon: '✓',
+    },
+    {
+      id: '2',
+      type: 'comment',
+      title: 'Left a comment on "Design Sprint"',
+      description: 'In Website Redesign',
+      timestamp: '4 hours ago',
+      icon: '💬',
+    },
+    {
+      id: '3',
+      type: 'member',
+      title: 'Added Sarah Chen as contributor',
+      description: 'To Security Audit project',
+      timestamp: '1 day ago',
+      icon: '👤',
+    },
+    {
+      id: '4',
+      type: 'project',
+      title: 'Created new project "Mobile App Development"',
+      description: 'Team collaboration project',
+      timestamp: '3 days ago',
+      icon: '📁',
+    },
+  ];
+
+  const notificationItems: NotificationItem[] = [
+    {
+      id: '1',
+      type: 'deadline',
+      title: 'Website Redesign due in 5 days',
+      description: 'Complete remaining tasks to meet deadline',
+      read: false,
+      timestamp: '1 hour ago',
+    },
+    {
+      id: '2',
+      type: 'mention',
+      title: 'You were mentioned by John Doe',
+      description: 'In Backend API Enhancement task comments',
+      read: false,
+      timestamp: '3 hours ago',
+    },
+    {
+      id: '3',
+      type: 'assignment',
+      title: 'New task assigned: "Code Review"',
+      description: 'In Security Audit project',
+      read: false,
+      timestamp: '1 day ago',
+    },
+    {
+      id: '4',
+      type: 'update',
+      title: 'Project update: Database Migration',
+      description: 'Jane Smith marked project as completed',
+      read: true,
+      timestamp: '2 days ago',
+    },
+  ];
+
+  const stats = {
+    totalProjects: projects.length,
+    activeProjects: projects.filter((p) => p.status === 'active').length,
+    activeTasks: projects.reduce((sum, p) => sum + p.taskCount, 0),
+  };
+
+  const StatCard = ({ title, value, subtitle, color }: { title: string; value: string | number; subtitle: string; color: string }) => (
+    <div className={`bg-linear-to-br ${color} rounded-lg shadow-sm border border-opacity-20 p-6 text-white`}>
+      <h3 className="text-sm font-medium opacity-90">{title}</h3>
+      <p className="text-3xl font-bold mt-2">{value}</p>
+      <p className="text-xs opacity-75 mt-2">{subtitle}</p>
+    </div>
+  );
+
+  const TaskCard = ({ title, project, priority }: { title: string; project: string; priority: 'high' | 'medium' | 'low' }) => {
+    const priorityColors = {
+      high: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200',
+      medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200',
+      low: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200',
+    };
+    return (
+      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 hover:shadow-md transition-all">
+        <div className="flex items-start justify-between mb-2">
+          <h4 className="font-medium text-zinc-900 dark:text-white text-sm flex-1">{title}</h4>
+          <span className={`text-xs font-medium px-2 py-1 rounded ${priorityColors[priority]}`}>
+            {priority}
+          </span>
+        </div>
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">{project}</p>
+      </div>
+    );
+  };
+
+  const NotificationComponent = ({ notification }: { notification: NotificationItem }) => {
+    const typeIcons = {
+      deadline: '⏰',
+      mention: '👤',
+      assignment: '📋',
+      update: '🔔',
+      system: '⚙️',
+    };
+    const typeColors = {
+      deadline: 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20',
+      mention: 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20',
+      assignment: 'border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20',
+      update: 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20',
+      system: 'border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50',
+    };
+
+    return (
+      <div className={`border rounded-lg p-4 ${typeColors[notification.type]} ${!notification.read ? 'font-medium' : ''}`}>
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-3 flex-1">
+            <span className="text-xl">{typeIcons[notification.type]}</span>
+            <div className="flex-1">
+              <h4 className="text-sm text-zinc-900 dark:text-white">{notification.title}</h4>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">{notification.description}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-2">{notification.timestamp}</p>
+            </div>
+          </div>
+          {!notification.read && <div className="w-2 h-2 bg-emerald-500 rounded-full mt-1 shrink-0"></div>}
+        </div>
+      </div>
+    );
+  };
+
+  const ProjectCard = ({ project }: { project: Project }) => (
+    <Link href={`/projects/${project._id}`}>
+      <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-emerald-500 dark:hover:border-emerald-500 transition-all p-4 cursor-pointer">
+        <div className="flex items-start justify-between mb-2">
+          <h4 className="font-semibold text-zinc-900 dark:text-white text-sm">
+            {project.name}
+          </h4>
+          {project.isPinned && (
+            <span className="text-yellow-500 text-lg">★</span>
+          )}
+        </div>
+        <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-3 line-clamp-2">
+          {project.description}
+        </p>
+        <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
+          <span>{project.taskCount} tasks</span>
+          <span>{project.teamMembers} members</span>
+        </div>
+      </div>
+    </Link>
+  );
+
+  const SectionHeader = ({ title, count }: { title: string; count?: number }) => (
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+        {title}
+        {count !== undefined && (
+          <span className="ml-2 text-sm font-normal text-zinc-600 dark:text-zinc-400">
+            ({count})
+          </span>
+        )}
+      </h2>
+    </div>
+  );
+
+  const allActiveProjects = projects.filter((p) => p.status === 'active');
+  const createdByYou = projects.filter((p) => p.creator === 'You');
+  const contributing = projects.filter((p) => p.isContributing && p.creator !== 'You');
+  const recentlyViewed = projects.filter((p) => p.recentlyViewed);
+  const pinned = projects.filter((p) => p.isPinned);
+  const completed = projects.filter((p) => p.status === 'completed');
+  const archived = projects.filter((p) => p.status === 'archived');
+  const nearDeadline = projects.filter((p) => p.daysUntilDeadline && p.daysUntilDeadline <= 7);
+  const requiresAction = projects.filter((p) => p.requiresAction);
+  const unreadNotifications = notificationItems.filter((n) => !n.read);
+
+  const handleCreateProject = (projectData: {
+    name: string;
+    priority: string;
+    startDate: string;
+    endDate: string;
+    collaborators: string[];
+  }) => {
+    const newProject: Project = {
+      _id: String(projects.length + 1),
+      name: projectData.name,
+      description: 'New project',
+      status: 'active',
+      creator: 'You',
+      isContributing: true,
+      isPinned: false,
+      recentlyViewed: true,
+      taskCount: 0,
+      teamMembers: projectData.collaborators.length + 1,
+      requiresAction: false,
+      updatedAt: new Date().toISOString().split('T')[0],
+    };
+    setProjects([...projects, newProject]);
+    setIsCreateProjectModalOpen(false);
+  };
+
+  return (
+    <div className="space-y-8">
+      <CreateProjectModal
+        isOpen={isCreateProjectModalOpen}
+        onClose={() => setIsCreateProjectModalOpen(false)}
+        onSubmit={handleCreateProject}
+      />
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
+            Dashboard
+          </h1>
+          <p className="text-zinc-600 dark:text-zinc-400 mt-1">
+            Welcome back! Here's your performance overview
+          </p>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+
+
+      {/* User Analytics Section */}
+      <section>
+        <SectionHeader title="📊 Your Analytics" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <StatCard title="Projects Created" value={userAnalytics.projectsCreated} subtitle="All time" color="from-emerald-500 to-emerald-600" />
+          <StatCard title="Tasks Completed" value={userAnalytics.tasksCompleted} subtitle="Overall" color="from-blue-500 to-blue-600" />
+          <StatCard title="Contributions" value={userAnalytics.contributions} subtitle="Team contributions" color="from-purple-500 to-purple-600" />
+          <StatCard title="Productivity Score" value={`${userAnalytics.productivityScore}%`} subtitle="Performance rating" color="from-orange-500 to-orange-600" />
+          <StatCard title="Avg Completion Time" value={userAnalytics.avgCompletionTime} subtitle="Per task" color="from-pink-500 to-pink-600" />
+          <StatCard title="Current Streak" value={`${userAnalytics.streak} days`} subtitle="Active participation" color="from-red-500 to-red-600" />
+        </div>
+      </section>
+
+      {/* Activity Timeline */}
+      <section>
+        <SectionHeader title="🕐 Recent Activity" />
+        <div className="space-y-3">
+          {activityItems.map((item) => (
+            <div key={item.id} className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 hover:shadow-sm transition-all">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">{item.icon}</span>
+                <div className="flex-1">
+                  <h4 className="font-medium text-zinc-900 dark:text-white text-sm">{item.title}</h4>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">{item.description}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-2">{item.timestamp}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Tasks & Workflow */}
+      <section>
+        <SectionHeader title="📋 Tasks & Workflow" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-200">To Do</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">8</p>
+          </div>
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <p className="text-sm font-medium text-yellow-900 dark:text-yellow-200">In Progress</p>
+            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">12</p>
+          </div>
+          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
+            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-200">Done</p>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">34</p>
+          </div>
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <p className="text-sm font-medium text-red-900 dark:text-red-200">Overdue</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">2</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <TaskCard title="Fix login form validation" project="Website Redesign" priority="high" />
+          <TaskCard title="Update API documentation" project="Backend API Enhancement" priority="medium" />
+          <TaskCard title="Review code submission" project="Security Audit" priority="high" />
+          <TaskCard title="Design dashboard layout" project="Mobile App Development" priority="medium" />
+        </div>
+      </section>
+
+      {/* Team & Collaboration */}
+      <section>
+        <SectionHeader title="🤝 Team & Collaboration" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <h3 className="font-semibold text-zinc-900 dark:text-white mb-3 text-sm">Your Teams</h3>
+            <div className="space-y-3">
+              {[
+                { name: 'Frontend Team', members: 5, projects: 3 },
+                { name: 'Backend Team', members: 4, projects: 2 },
+                { name: 'Design Team', members: 3, projects: 2 },
+              ].map((team, idx) => (
+                <div key={idx} className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                  <h4 className="font-medium text-zinc-900 dark:text-white text-sm">{team.name}</h4>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-2">
+                    {team.members} members • {team.projects} projects
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3 className="font-semibold text-zinc-900 dark:text-white mb-3 text-sm">Top Collaborators</h3>
+            <div className="space-y-3">
+              {[
+                { name: 'John Doe', projects: 5, contributions: 142 },
+                { name: 'Jane Smith', projects: 4, contributions: 98 },
+                { name: 'Sarah Chen', projects: 3, contributions: 67 },
+              ].map((collab, idx) => (
+                <div key={idx} className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                  <h4 className="font-medium text-zinc-900 dark:text-white text-sm">{collab.name}</h4>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-2">
+                    {collab.projects} projects • {collab.contributions} contributions
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Notifications & Alerts */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+            🔔 Notifications & Alerts
+            {unreadNotifications.length > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full">
+                {unreadNotifications.length}
+              </span>
+            )}
+          </h2>
+        </div>
+        <div className="space-y-3">
+          {notificationItems.map((notification) => (
+            <NotificationComponent key={notification.id} notification={notification} />
+          ))}
+        </div>
+      </section>
+
+      {/* Projects Sections */}
+      <div className="space-y-10">
+        {/* Pinned / Favorite Projects */}
+        {pinned.length > 0 && (
+          <section>
+            <SectionHeader title="📌 Pinned / Favorite Projects" count={pinned.length} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pinned.map((project) => (
+                <ProjectCard key={project._id} project={project} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Projects Requiring Action */}
+        {requiresAction.length > 0 && (
+          <section>
+            <SectionHeader title="⚠️ Projects Requiring Your Action" count={requiresAction.length} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {requiresAction.map((project) => (
+                <ProjectCard key={project._id} project={project} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Projects Near Deadline */}
+        {nearDeadline.length > 0 && (
+          <section>
+            <SectionHeader title="⏰ Projects Near Deadline" count={nearDeadline.length} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {nearDeadline.map((project) => (
+                <div key={project._id}>
+                  <ProjectCard project={project} />
+                  {project.daysUntilDeadline && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                      {project.daysUntilDeadline} days until deadline
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Recently Viewed Projects */}
+        {recentlyViewed.length > 0 && (
+          <section>
+            <SectionHeader title="🕐 Recently Viewed Projects" count={recentlyViewed.length} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {recentlyViewed.map((project) => (
+                <ProjectCard key={project._id} project={project} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* All Active Projects */}
+        {allActiveProjects.length > 0 && (
+          <section>
+            <SectionHeader title="✨ All Active Projects" count={allActiveProjects.length} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {allActiveProjects.map((project) => (
+                <ProjectCard key={project._id} project={project} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Projects You Created */}
+        {createdByYou.length > 0 && (
+          <section>
+            <SectionHeader title="👤 Projects You Created" count={createdByYou.length} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {createdByYou.map((project) => (
+                <ProjectCard key={project._id} project={project} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Projects You're Contributing To */}
+        {contributing.length > 0 && (
+          <section>
+            <SectionHeader title="🤝 Projects You're Contributing To" count={contributing.length} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {contributing.map((project) => (
+                <ProjectCard key={project._id} project={project} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Completed Projects */}
+        {completed.length > 0 && (
+          <section>
+            <SectionHeader title="✅ Completed Projects" count={completed.length} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {completed.map((project) => (
+                <ProjectCard key={project._id} project={project} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Archived Projects */}
+        {archived.length > 0 && (
+          <section>
+            <SectionHeader title="📦 Archived Projects" count={archived.length} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {archived.map((project) => (
+                <ProjectCard key={project._id} project={project} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
