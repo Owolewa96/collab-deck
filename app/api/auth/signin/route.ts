@@ -63,30 +63,29 @@ export async function POST(req: NextRequest) {
     );
 
     // === Return token and user data ===
-    const response = NextResponse.json(
-      {
-        message: 'Sign in successful.',
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
+    const payload = {
+      message: 'Sign in successful.',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
       },
-      { status: 200 }
-    );
+    };
 
-    // === Set token in httpOnly cookie ===
-    response.cookies.set('authToken', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: '/',
-    });
+    const res = NextResponse.json(payload, { status: 200 });
 
-    return response;
+    // === Set token in httpOnly cookie via Set-Cookie header (more compatible) ===
+    const secureFlag = process.env.NODE_ENV === 'production';
+    const maxAge = 7 * 24 * 60 * 60; // 7 days in seconds
+    const cookieValue = `authToken=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${
+      secureFlag ? '; Secure' : ''
+    }`;
+
+    res.headers.set('Set-Cookie', cookieValue);
+
+    return res;
   } catch (error) {
     /* eslint-disable no-console */
     console.error('Signin error:', error);
