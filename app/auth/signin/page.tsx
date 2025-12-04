@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function SigninPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -62,16 +63,13 @@ export default function SigninPage() {
         return;
       }
 
-      // Store token in localStorage if remember me is checked
-      if (rememberMe) {
-        localStorage.setItem('authToken', data.token);
-      }
-
+      // Server sets httpOnly cookie; avoid storing token in localStorage for security.
       setSuccess(true);
       setFormData({ email: '', password: '' });
 
       setTimeout(() => {
-        router.push('/dashboard');
+        const from = searchParams?.get('from') || '/dashboard';
+        router.push(from);
       }, 1000);
     } catch (error) {
       setApiError('Network error. Please check your connection and try again.');

@@ -36,12 +36,7 @@ const ProjectSchema = new Schema(
     },
     creator: { type: Schema.Types.Mixed, required: true }, // user id or object
     collaborators: [{ type: Schema.Types.Mixed }], // user ids or emails
-    teamMembersCount: { type: Number, default: 0 },
-    taskCount: { type: Number, default: 0 },
-    isPinned: { type: Boolean, default: false },
-    isContributing: { type: Boolean, default: false },
     recentlyViewed: { type: Boolean, default: false },
-    requiresAction: { type: Boolean, default: false },
     priority: {
       type: String,
       enum: ['low', 'medium', 'high', 'critical'],

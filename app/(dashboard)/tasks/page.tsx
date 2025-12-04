@@ -71,6 +71,12 @@ export default function TasksPage() {
 
   const currentUser = 'you@example.com';
 
+  // Quick workflow summary (moved from Dashboard Tasks & Workflow)
+  const todoCount = tasks.filter((t) => t.status === 'todo').length;
+  const inProgressCount = tasks.filter((t) => t.status === 'in-progress').length;
+  const doneCount = tasks.filter((t) => t.status === 'done').length;
+  const overdueCount = tasks.filter((t) => t.dueDate && t.dueDate < new Date().toISOString().split('T')[0]).length;
+
   const filtered = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     switch (filter) {
@@ -128,6 +134,28 @@ export default function TasksPage() {
 
   return (
     <div>
+      {/* Tasks & Workflow summary (migrated from Dashboard) */}
+      <section className="mb-6">
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">📋 Tasks & Workflow</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-200">To Do</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">{todoCount}</p>
+          </div>
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <p className="text-sm font-medium text-yellow-900 dark:text-yellow-200">In Progress</p>
+            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">{inProgressCount}</p>
+          </div>
+          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
+            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-200">Done</p>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">{doneCount}</p>
+          </div>
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <p className="text-sm font-medium text-red-900 dark:text-red-200">Overdue</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">{overdueCount}</p>
+          </div>
+        </div>
+      </section>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Tasks</h1>

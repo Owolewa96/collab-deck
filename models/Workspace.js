@@ -5,9 +5,9 @@ import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 
-const UserSchema = new Schema(
+const WorkspaceSchema = new Schema(
   {
-    name: { type: String, required: true, trim: true },
+    user: { type: String, required: true, trim: true },
     email: {
       type: String,
       required: true,
@@ -22,10 +22,6 @@ const UserSchema = new Schema(
       enum: ['user', 'admin'],
       default: 'user',
     },
-    projects: [{ type: Schema.Types.Mixed }], // project ids or objects
-    pinnedProjects: [{ type: Schema.Types.Mixed }], // project ids or objects
-    archivedProjects: [{ type: Schema.Types.Mixed }], // project ids or objects
-    recentActivities: [{type: Schema.Types.Mixed }], // activity log entries
   },
   { timestamps: true }
 );

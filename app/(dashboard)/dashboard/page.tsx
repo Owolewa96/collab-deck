@@ -204,11 +204,11 @@ interface Project {
   description: string;
   status: 'active' | 'archived' | 'completed';
   creator: string;
-  isContributing: boolean;
-  isPinned: boolean;
-  recentlyViewed: boolean;
-  taskCount: number;
-  teamMembers: number;
+  isContributing?: boolean;
+  isPinned?: boolean;
+  recentlyViewed?: boolean;
+  taskCount?: number;
+  teamMembers?: number;
   daysUntilDeadline?: number;
   requiresAction: boolean;
   updatedAt: string;
@@ -253,88 +253,10 @@ export default function DashboardPage() {
       description: 'Complete redesign of the company website',
       status: 'active',
       creator: 'You',
-      isContributing: true,
-      isPinned: true,
-      recentlyViewed: true,
-      taskCount: 24,
-      teamMembers: 5,
       daysUntilDeadline: 5,
       requiresAction: true,
       updatedAt: '2025-12-02',
-    },
-    {
-      _id: '2',
-      name: 'Mobile App Development',
-      description: 'Build a native mobile application',
-      status: 'active',
-      creator: 'John Doe',
-      isContributing: true,
-      isPinned: false,
-      recentlyViewed: true,
-      taskCount: 18,
-      teamMembers: 4,
-      daysUntilDeadline: 12,
-      requiresAction: false,
-      updatedAt: '2025-12-01',
-    },
-    {
-      _id: '3',
-      name: 'Backend API Enhancement',
-      description: 'Improve API performance',
-      status: 'active',
-      creator: 'You',
-      isContributing: true,
-      isPinned: false,
-      recentlyViewed: false,
-      taskCount: 12,
-      teamMembers: 3,
-      daysUntilDeadline: 3,
-      requiresAction: true,
-      updatedAt: '2025-11-28',
-    },
-    {
-      _id: '4',
-      name: 'Database Migration',
-      description: 'Migrate to modern cloud solution',
-      status: 'completed',
-      creator: 'You',
-      isContributing: true,
-      isPinned: false,
-      recentlyViewed: false,
-      taskCount: 8,
-      teamMembers: 2,
-      requiresAction: false,
-      updatedAt: '2025-11-30',
-    },
-    {
-      _id: '5',
-      name: 'Security Audit',
-      description: 'Comprehensive security review',
-      status: 'active',
-      creator: 'Jane Smith',
-      isContributing: true,
-      isPinned: true,
-      recentlyViewed: false,
-      taskCount: 15,
-      teamMembers: 3,
-      daysUntilDeadline: 8,
-      requiresAction: true,
-      updatedAt: '2025-12-02',
-    },
-    {
-      _id: '6',
-      name: 'Old Project Archive',
-      description: 'Legacy system documentation',
-      status: 'archived',
-      creator: 'You',
-      isContributing: false,
-      isPinned: false,
-      recentlyViewed: false,
-      taskCount: 0,
-      teamMembers: 1,
-      requiresAction: false,
-      updatedAt: '2025-10-01',
-    },
+    }
   ]);
 
   const userAnalytics: UserAnalytics = {
@@ -535,22 +457,71 @@ export default function DashboardPage() {
     endDate: string;
     collaborators: string[];
   }) => {
-    const newProject: Project = {
-      _id: String(projects.length + 1),
-      name: projectData.name,
-      description: 'New project',
-      status: 'active',
-      creator: 'You',
-      isContributing: true,
-      isPinned: false,
-      recentlyViewed: true,
-      taskCount: 0,
-      teamMembers: projectData.collaborators.length + 1,
-      requiresAction: false,
-      updatedAt: new Date().toISOString().split('T')[0],
-    };
-    setProjects([...projects, newProject]);
-    setIsCreateProjectModalOpen(false);
+    // Try creating project in backend first, fallback to local state on failure
+    (async () => {
+      try {
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: projectData.name,
+            priority: projectData.priority,
+            startDate: projectData.startDate,
+            endDate: projectData.endDate,
+            collaborators: projectData.collaborators,
+            description: 'New project',
+            creator: 'You',
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const createdProject = data.project;
+          // Ensure project shape matches front-end Project type
+          const projectToAdd = {
+            _id: String(createdProject._id || createdProject.id || projects.length + 1),
+            name: createdProject.name || projectData.name,
+            description: createdProject.description || 'New project',
+            status: createdProject.status || 'active',
+            creator: createdProject.creator || 'You',
+            isContributing: createdProject.isContributing ?? true,
+            isPinned: createdProject.isPinned ?? false,
+            recentlyViewed: createdProject.recentlyViewed ?? true,
+            taskCount: createdProject.taskCount ?? 0,
+            teamMembers: createdProject.teamMembersCount ?? (projectData.collaborators.length + 1),
+            requiresAction: createdProject.requiresAction ?? false,
+            updatedAt: createdProject.updatedAt || new Date().toISOString().split('T')[0],
+            // optional field left undefined when unknown
+            daysUntilDeadline: undefined,
+          } as Project;
+
+          setProjects((prev) => [...prev, projectToAdd]);
+          setIsCreateProjectModalOpen(false);
+          return;
+        }
+      } catch (err) {
+        // ignore and fallback to client-side creation
+        // console.warn('Project API create failed, falling back to client', err);
+      }
+
+      // Fallback: add locally so UI is responsive even if backend failed
+      const fallbackProject = {
+        _id: String(projects.length + 1),
+        name: projectData.name,
+        description: 'New project',
+        status: 'active',
+        creator: 'You',
+        isContributing: true,
+        isPinned: false,
+        recentlyViewed: true,
+        taskCount: 0,
+        teamMembers: projectData.collaborators.length + 1,
+        requiresAction: false,
+        updatedAt: new Date().toISOString().split('T')[0],
+      } as Project;
+      setProjects((prev) => [...prev, fallbackProject]);
+      setIsCreateProjectModalOpen(false);
+    })();
   };
 
   return (
@@ -608,33 +579,13 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Tasks & Workflow */}
+      {/* Tasks & Workflow (moved to Tasks page) */}
       <section>
-        <SectionHeader title="📋 Tasks & Workflow" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <p className="text-sm font-medium text-blue-900 dark:text-blue-200">To Do</p>
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">8</p>
-          </div>
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-            <p className="text-sm font-medium text-yellow-900 dark:text-yellow-200">In Progress</p>
-            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">12</p>
-          </div>
-          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
-            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-200">Done</p>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">34</p>
-          </div>
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <p className="text-sm font-medium text-red-900 dark:text-red-200">Overdue</p>
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">2</p>
-          </div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">📋 Tasks & Workflow</h2>
+          <Link href="/tasks" className="text-sm text-emerald-600 hover:underline">Open Tasks</Link>
         </div>
-        <div className="space-y-3">
-          <TaskCard title="Fix login form validation" project="Website Redesign" priority="high" />
-          <TaskCard title="Update API documentation" project="Backend API Enhancement" priority="medium" />
-          <TaskCard title="Review code submission" project="Security Audit" priority="high" />
-          <TaskCard title="Design dashboard layout" project="Mobile App Development" priority="medium" />
-        </div>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Summary & detailed tasks moved to the Tasks page.</p>
       </section>
 
       {/* Team & Collaboration */}
@@ -678,23 +629,13 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Notifications & Alerts */}
+      {/* Notifications (moved to notifications page) */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-            🔔 Notifications & Alerts
-            {unreadNotifications.length > 0 && (
-              <span className="ml-2 inline-flex items-center justify-center w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full">
-                {unreadNotifications.length}
-              </span>
-            )}
-          </h2>
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">🔔 Notifications & Alerts</h2>
+          <Link href="/notifications" className="text-sm text-emerald-600 hover:underline">View all</Link>
         </div>
-        <div className="space-y-3">
-          {notificationItems.map((notification) => (
-            <NotificationComponent key={notification.id} notification={notification} />
-          ))}
-        </div>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Your notifications moved to a dedicated Notifications page.</p>
       </section>
 
       {/* Projects Sections */}
