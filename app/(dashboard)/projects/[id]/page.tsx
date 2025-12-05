@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, use, useEffect } from 'react';
 import {
   DndContext,
   closestCorners,
@@ -32,6 +32,77 @@ interface Column {
   _id: string;
   name: string;
   order: number;
+}
+
+// Task Modal Component
+function TaskModal({
+  isOpen,
+  onClose,
+  collaborators,
+  onSubmit,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  collaborators: string[];
+  onSubmit: (data: { title: string; description?: string; dueDate?: string; assignees: string[] }) => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [assignees, setAssignees] = useState<string[]>([]);
+
+  const toggleAssignee = (email: string) => {
+    setAssignees((prev) => (prev.includes(email) ? prev.filter((a) => a !== email) : [...prev, email]));
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    onSubmit({ title: title.trim(), description: description ?? '', dueDate: dueDate || undefined, assignees });
+    setTitle('');
+    setDescription('');
+    setDueDate('');
+    setAssignees([]);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg p-6 w-full max-w-md">
+        <h3 className="text-lg font-semibold mb-3 text-zinc-900 dark:text-white">Create Task</h3>
+        <form onSubmit={submit} className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Title</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Description (optional)</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white" rows={3} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Due Date</label>
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-3 py-2 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white" />
+          </div>
+          <div>
+            <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Assign To</div>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {collaborators.map((c) => (
+                <label key={c} className="flex items-center gap-2">
+                  <input type="checkbox" checked={assignees.includes(c)} onChange={() => toggleAssignee(c)} />
+                  <span className="text-sm text-zinc-900 dark:text-white">{c}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end pt-4">
+            <button type="button" onClick={onClose} className="px-3 py-2 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">Cancel</button>
+            <button type="submit" className="px-3 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-700">Create</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 // Draggable Task Component
@@ -122,29 +193,110 @@ export default function ProjectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      _id: '1',
-      title: 'Set up database',
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [collaborators, setCollaborators] = useState<string[]>([]);
+  const [projectData, setProjectData] = useState<any>(null);
+
+  // Fetch project data and tasks
+  useEffect(() => {
+    let cancelled = false;
+    
+    const fetchProjectData = async () => {
+      try {
+        const res = await fetch(`/api/projects/${id}`, { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) {
+          setProjectData(data.project);
+          setCollaborators(data.project.collaborators || []);
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    const fetchTasks = async () => {
+      try {
+        const res = await fetch(`/api/tasks?projectId=${id}`, { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) {
+          // adapt shape if necessary
+          const serverTasks = (data.tasks || []).map((t: any) => ({
+            _id: t._id || t.id || String(Math.random()),
+            title: t.title,
+            columnId: t.status === 'done' ? 'done' : t.status === 'in-progress' ? 'in-progress' : 'todo',
+            priority: t.priority || 'medium',
+            status: t.status || 'todo',
+          }));
+          setTasks(serverTasks);
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    fetchProjectData();
+    fetchTasks();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const handleCreateTask = async (taskData: { title: string; description?: string; dueDate?: string; assignees: string[] }) => {
+    // Optimistic update: add task immediately
+    const optimisticTask: Task = {
+      _id: `temp-${Date.now()}`,
+      title: taskData.title,
       columnId: 'todo',
-      priority: 'high',
-      status: 'todo',
-    },
-    {
-      _id: '2',
-      title: 'Create API endpoints',
-      columnId: 'in-progress',
-      priority: 'high',
-      status: 'in-progress',
-    },
-    {
-      _id: '3',
-      title: 'Build frontend',
-      columnId: 'in-progress',
       priority: 'medium',
-      status: 'in-progress',
-    },
-  ]);
+      status: 'todo',
+    };
+    
+    setTasks((prev) => [...prev, optimisticTask]);
+    setIsTaskModalOpen(false);
+
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: id,
+          title: taskData.title,
+          description: taskData.description || '',
+          dueDate: taskData.dueDate,
+          assignees: taskData.assignees,
+          priority: 'medium',
+          status: 'todo',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Replace the temporary task with the real one from server
+        setTasks((prev) =>
+          prev.map((t) =>
+            t._id === optimisticTask._id
+              ? {
+                  _id: data.task._id || data.task.id,
+                  title: data.task.title,
+                  columnId: 'todo',
+                  priority: data.task.priority || 'medium',
+                  status: data.task.status || 'todo',
+                }
+              : t
+          )
+        );
+      } else {
+        // Remove optimistic task if request failed
+        setTasks((prev) => prev.filter((t) => t._id !== optimisticTask._id));
+      }
+    } catch (err) {
+      // Remove optimistic task on error
+      setTasks((prev) => prev.filter((t) => t._id !== optimisticTask._id));
+    }
+  };
 
   const [columns] = useState<Column[]>([
     { _id: 'todo', name: 'To Do', order: 0 },
@@ -196,21 +348,60 @@ export default function ProjectDetailPage({
     // Only update if column actually changed
     if (activeTask.columnId === targetColumnId) return;
 
-    // Update task's column
+    // Update UI immediately (optimistic update)
     setTasks((prevTasks) =>
       prevTasks.map((task) =>
         task._id === activeId
-          ? { ...task, columnId: targetColumnId }
+          ? { ...task, columnId: targetColumnId, status: targetColumnId }
           : task
       )
     );
+
+    // Persist to database
+    const statusMap: { [key: string]: string } = {
+      todo: 'todo',
+      'in-progress': 'in-progress',
+      done: 'done',
+    };
+
+    fetch(`/api/tasks/${activeId}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: statusMap[targetColumnId] || 'todo' }),
+    }).catch((err) => {
+      // Revert on error
+      console.error('Failed to update task status:', err);
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task._id === activeId
+            ? { ...task, columnId: activeTask.columnId, status: activeTask.status }
+            : task
+        )
+      );
+    });
   };
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-8">
-        Project {id}
-      </h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
+          Project {id}
+        </h1>
+        <button
+          onClick={() => setIsTaskModalOpen(true)}
+          className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-500 transition font-medium"
+        >
+          Create Task
+        </button>
+      </div>
+
+      <TaskModal
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        collaborators={collaborators}
+        onSubmit={handleCreateTask}
+      />
 
       <DndContext
         sensors={sensors}

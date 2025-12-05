@@ -202,13 +202,20 @@ interface Project {
   description: string;
   status: 'active' | 'archived' | 'completed';
   creator: string;
-  isContributing?: boolean;
+  priority?: string;
+  startDate?: string;
+  endDate?: string;
+  // User preferences (from ProjectUser model)
   isPinned?: boolean;
+  isArchived?: boolean;
+  isFavorite?: boolean;
+  isContributing?: boolean;
   recentlyViewed?: boolean;
+  viewedAt?: string;
+  // Computed fields
   taskCount?: number;
   teamMembers?: number;
   daysUntilDeadline?: number;
-  requiresAction: boolean;
   updatedAt: string;
 }
 
@@ -437,9 +444,9 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
   const recentlyViewed = projects.filter((p) => p.recentlyViewed);
   const pinned = projects.filter((p) => p.isPinned);
   const completed = projects.filter((p) => p.status === 'completed');
-  const archived = projects.filter((p) => p.status === 'archived');
+  const archived = projects.filter((p) => p.isArchived);
   const nearDeadline = projects.filter((p) => p.daysUntilDeadline && p.daysUntilDeadline <= 7);
-  const requiresAction = projects.filter((p) => p.requiresAction);
+  const favorite = projects.filter((p) => p.isFavorite);
   const unreadNotifications = notificationItems.filter((n) => !n.read);
 
   const handleCreateProject = (projectData: {
@@ -476,14 +483,19 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
             description: createdProject.description || 'New project',
             status: createdProject.status || 'active',
             creator: createdProject.creator || userName,
-            isContributing: createdProject.isContributing ?? true,
-            isPinned: createdProject.isPinned ?? false,
-            recentlyViewed: createdProject.recentlyViewed ?? true,
+            priority: createdProject.priority || projectData.priority,
+            startDate: createdProject.startDate,
+            endDate: createdProject.endDate,
+            // User preferences (from ProjectUser model)
+            isPinned: false,
+            isArchived: false,
+            isFavorite: false,
+            isContributing: true,
+            recentlyViewed: true,
+            // Computed fields
             taskCount: createdProject.taskCount ?? 0,
             teamMembers: createdProject.teamMembersCount ?? (projectData.collaborators.length + 1),
-            requiresAction: createdProject.requiresAction ?? false,
             updatedAt: createdProject.updatedAt || new Date().toISOString().split('T')[0],
-            // optional field left undefined when unknown
             daysUntilDeadline: undefined,
           } as Project;
 
@@ -503,12 +515,18 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
         description: 'New project',
         status: 'active',
         creator: userName,
-        isContributing: true,
+        priority: projectData.priority,
+        startDate: projectData.startDate,
+        endDate: projectData.endDate,
+        // User preferences
         isPinned: false,
+        isArchived: false,
+        isFavorite: false,
+        isContributing: true,
         recentlyViewed: true,
+        // Computed fields
         taskCount: 0,
         teamMembers: projectData.collaborators.length + 1,
-        requiresAction: false,
         updatedAt: new Date().toISOString().split('T')[0],
       } as Project;
       setProjects((prev) => [...prev, fallbackProject]);
@@ -577,14 +595,6 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
         </div>
       </section>
 
-      {/* Tasks & Workflow (moved to Tasks page) */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">📋 Tasks & Workflow</h2>
-          <Link href="/tasks" className="text-sm text-emerald-600 hover:underline">Open Tasks</Link>
-        </div>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Summary & detailed tasks moved to the Tasks page.</p>
-      </section>
 
       {/* Team & Collaboration */}
       <section>
@@ -627,14 +637,6 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
         </div>
       </section>
 
-      {/* Notifications (moved to notifications page) */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">🔔 Notifications & Alerts</h2>
-          <Link href="/notifications" className="text-sm text-emerald-600 hover:underline">View all</Link>
-        </div>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Your notifications moved to a dedicated Notifications page.</p>
-      </section>
 
       {/* Projects Sections */}
       <div className="space-y-10">
@@ -650,12 +652,12 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
           </section>
         )}
 
-        {/* Projects Requiring Action */}
-        {requiresAction.length > 0 && (
+        {/* Favorite Projects */}
+        {favorite.length > 0 && (
           <section>
-            <SectionHeader title="⚠️ Projects Requiring Your Action" count={requiresAction.length} />
+            <SectionHeader title="❤️ Favorite Projects" count={favorite.length} />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {requiresAction.map((project) => (
+              {favorite.map((project) => (
                 <ProjectCard key={project._id} project={project} />
               ))}
             </div>

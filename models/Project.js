@@ -1,21 +1,17 @@
 /**
  * Project Model (Mongoose)
  *
- * This file defines a comprehensive Project schema that matches the
- * front-end shape used in the dashboard and projects pages.
+ * This file defines the Project schema for core project data.
+ * User preferences (pinned, archived, favorite) are stored separately
+ * in the ProjectUser model to allow different users to have different
+ * preferences for the same project.
  *
- * Fields included:
- * - name, description, status
- * - creator, collaborators, teamMembers
- * - task-related counters
- * - startDate, endDate, priority
- * - flags: isPinned, requiresAction, recentlyViewed
+ * Fields:
+ * - name, description, status (active|completed|archived)
+ * - creator, collaborators (user references)
+ * - priority (low|medium|high|critical)
+ * - startDate, endDate
  * - timestamps (createdAt, updatedAt)
- *
- * The model exports a Mongoose model when mongoose is available. If you
- * don't use Mongoose in your environment, the file still exports a
- * lightweight placeholder object for the same API surface to avoid
- * breaking imports elsewhere.
  */
 
 import mongoose from 'mongoose';
@@ -36,7 +32,6 @@ const ProjectSchema = new Schema(
     },
     creator: { type: Schema.Types.Mixed, required: true }, // user id or object
     collaborators: [{ type: Schema.Types.Mixed }], // user ids or emails
-    recentlyViewed: { type: Boolean, default: false },
     priority: {
       type: String,
       enum: ['low', 'medium', 'high', 'critical'],
