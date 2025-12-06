@@ -11,7 +11,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/db';
-import User from '@/models/User';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_in_production';
 
@@ -42,8 +41,10 @@ export async function GET(req: NextRequest) {
     await connectDB();
 
     // === Fetch user from database ===
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user = await (User as any).findById(decoded.id);
+    // Dynamically import the User model to avoid top-level implicit any issues
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const User = (await import('@/models/User')).default as any;
+    const user = await User.findById(decoded.id);
     if (!user) {
       return NextResponse.json(
         { error: 'User not found.' },

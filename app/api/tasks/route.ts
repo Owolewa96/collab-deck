@@ -1,30 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/db';
-// @ts-ignore
-import Project from '@/models/Project';
-// @ts-ignore
-// @ts-ignore
-import Task from '@/models/Task';
+import Project, { IProject } from '@/models/Project';
+import Task, { ITask } from '@/models/Task';
+import { notifyMultiple } from '@/lib/notify';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_in_production';
 
 export async function POST(req: NextRequest) {
   try {
     const token = req.cookies.get('authToken')?.value;
-    let userId = null;
-    let userEmail = null;
+    let userId: string | null = null;
+    let userEmail: string | null = null;
 
     if (token) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const decoded: any = jwt.verify(token, JWT_SECRET);
+        const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string };
         userId = decoded.id;
         userEmail = decoded.email;
       } catch (err) {
-        /* eslint-disable no-console */
         console.error('Token verification failed:', err);
-        /* eslint-enable no-console */
       }
     }
 
@@ -37,44 +32,70 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { projectId, title, description, dueDate, assignees } = body;
 
-    if (!projectId || !title || title.trim().length === 0) {
+    if (!projectId || !title?.trim()) {
       return NextResponse.json({ error: 'projectId and title are required' }, { status: 400 });
     }
 
-    // Check project access: user must be creator or in collaborators
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const project: any = await (Project as any).findById(projectId);
+    // Check project
+    const project = await Project.findById(projectId) as IProject | null;
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    const isCreator = String(project.creator) === String(userId) || String(project.creator) === String(userEmail);
-    const isCollaborator = Array.isArray(project.collaborators) && project.collaborators.includes(userId) ||
-      (Array.isArray(project.collaborators) && project.collaborators.includes(userEmail));
+    const isCreator =
+      String(project.creator) === userId ||
+      String(project.creator) === userEmail;
+
+    const isCollaborator =
+      Array.isArray(project.collaborators) &&
+      (project.collaborators.includes(userId) ||
+       project.collaborators.includes(userEmail));
 
     if (!isCreator && !isCollaborator) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const taskData = {
+    const taskData: Partial<ITask> = {
       projectId,
       title: title.trim(),
       description: description ?? '',
-      assignees: assignees || [],
+      assignees: assignees ?? [],
       dueDate: dueDate ? new Date(dueDate) : null,
       status: 'todo',
-      createdAt: new Date(),
-      updatedAt: new Date(),
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const created = await (Task as any).create(taskData);
+    const created = await Task.create(taskData);
 
-    return NextResponse.json({ message: 'Task created', task: created }, { status: 201 });
-  } catch (err: any) {
-    /* eslint-disable no-console */
+    // create notifications for assignees or project collaborators
+    try {
+      const recipients = Array.isArray(created.assignees) && created.assignees.length > 0
+        ? created.assignees
+        : (Array.isArray(project.collaborators) ? project.collaborators : []);
+
+      // filter out the actor
+      const filtered = recipients.filter((r: any) => String(r) !== String(userId) && String(r) !== String(userEmail));
+
+      if (filtered.length > 0) {
+        await notifyMultiple(filtered, {
+          type: 'assignment',
+          title: `Assigned: ${created.title}`,
+          description: `You were assigned to "${created.title}" in ${project.name || 'a project'}`,
+          createdBy: userId,
+          projectId: project._id,
+          taskId: created._id,
+          actionUrl: `/projects/${project._id}/tasks/${created._id}`,
+        });
+      }
+    } catch (err) {
+      console.error('task notification error:', err);
+    }
+
+    return NextResponse.json(
+      { message: 'Task created', task: created },
+      { status: 201 }
+    );
+  } catch (err) {
     console.error('Create task error:', err);
-    /* eslint-enable no-console */
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -90,23 +111,11 @@ export async function GET(req: NextRequest) {
 
     await connectDB();
 
-    // Support both mongoose model and placeholder
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let tasks;
-    // If Task has a .find (mongoose model)
-    if ((Task as any).find) {
-      tasks = await (Task as any).find({ projectId }).lean?.() || await (Task as any).find({ projectId });
-    } else if ((Task as any).findByProjectId) {
-      tasks = await (Task as any).findByProjectId(projectId);
-    } else {
-      tasks = [];
-    }
+    const tasks = await Task.find({ projectId }).lean<ITask[]>();
 
     return NextResponse.json({ tasks }, { status: 200 });
-  } catch (err: any) {
-    /* eslint-disable no-console */
+  } catch (err) {
     console.error('Get tasks error:', err);
-    /* eslint-enable no-console */
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

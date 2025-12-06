@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 
 interface CreateProjectModalProps {
@@ -257,85 +257,202 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
 
   // Use fetched projects as initial state, allow updates from Create Project
   const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [recentProjects, setRecentProjects] = useState<Project[]>([]);
+  const [tasksFromServer, setTasksFromServer] = useState<any[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/user/dashboard', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!mounted) return;
+
+        if (Array.isArray(data.projects) && data.projects.length > 0) {
+          setProjects(
+            data.projects.map((p: any) => ({
+              _id: p._id,
+              name: p.name,
+              description: p.description || '',
+              status: p.status || 'active',
+              creator: p.creator,
+              priority: p.priority || 'medium',
+              startDate: p.startDate || undefined,
+              endDate: p.endDate || undefined,
+              updatedAt: p.updatedAt || new Date().toISOString(),
+            }))
+          );
+        }
+
+        if (Array.isArray(data.recentProjects)) {
+          setRecentProjects(data.recentProjects.map((p: any) => ({
+            _id: p._id,
+            name: p.name,
+            description: p.description || '',
+            status: p.status || 'active',
+            creator: p.creator,
+            updatedAt: p.updatedAt || new Date().toISOString(),
+          })));
+        }
+
+        if (Array.isArray(data.tasks)) {
+          setTasksFromServer(data.tasks);
+        }
+      } catch (err) {
+        // ignore fetch errors
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Derive analytics from fetched projects and tasks
+  const tasksFrom = tasksFromServer || [];
+  const completedCount = tasksFrom.filter((t) => t.status === 'done').length;
+  const assignedToYouCount = tasksFrom.filter((t) => t.assignees && t.assignees.includes(userName)).length;
 
   const userAnalytics: UserAnalytics = {
     projectsCreated: projects.filter((p) => p.creator === userName || p.creator === 'You').length,
-    tasksCompleted: 127,
-    contributions: 342,
-    productivityScore: 94,
-    avgCompletionTime: '2.3 days',
-    streak: 12,
+    tasksCompleted: completedCount,
+    contributions: tasksFrom.length,
+    productivityScore: Math.min(100, completedCount > 0 ? Math.round((completedCount / Math.max(1, tasksFrom.length)) * 100) : 0),
+    avgCompletionTime: 'n/a',
+    streak: 0,
   };
 
-  const activityItems: ActivityItem[] = [
-    {
-      id: '1',
-      type: 'task',
-      title: 'Completed task "Setup Database"',
-      description: 'In Backend API Enhancement',
-      timestamp: '2 hours ago',
-      icon: '✓',
-    },
-    {
-      id: '2',
-      type: 'comment',
-      title: 'Left a comment on "Design Sprint"',
-      description: 'In Website Redesign',
-      timestamp: '4 hours ago',
-      icon: '💬',
-    },
-    {
-      id: '3',
-      type: 'member',
-      title: 'Added Sarah Chen as contributor',
-      description: 'To Security Audit project',
-      timestamp: '1 day ago',
-      icon: '👤',
-    },
-    {
-      id: '4',
-      type: 'project',
-      title: 'Created new project "Mobile App Development"',
-      description: 'Team collaboration project',
-      timestamp: '3 days ago',
-      icon: '📁',
-    },
+  // Recent activity derived from tasks and projects
+  const activityItems: ActivityItem[] = tasksFrom.slice(0, 8).map((t: any, i: number) => ({
+    id: `${t._id || t.id}-${i}`,
+    type: 'task',
+    title: `${t.status === 'done' ? 'Completed' : 'Updated'} task "${t.title}"`,
+    description: t.projectName || t.project?.name || 'Project',
+    timestamp: t.updatedAt ? new Date(t.updatedAt).toLocaleString() : (t.createdAt ? new Date(t.createdAt).toLocaleString() : 'recent'),
+    icon: t.status === 'done' ? '✓' : '📝',
+  } as ActivityItem));
+
+  // Notifications: upcoming deadlines and new assignments
+  const now = new Date();
+  const upcomingDeadlines = tasksFrom.filter((t: any) => t.dueDate).filter((t: any) => {
+    const due = new Date(t.dueDate);
+    const diff = due.getTime() - now.getTime();
+    return diff > 0 && diff <= 7 * 24 * 60 * 60 * 1000; // next 7 days
+  });
+
+  // Start with derived notifications, then we will overwrite with persisted ones from the server
+  const derivedNotifications = [
+    ...upcomingDeadlines.map((t: any, i: number) => ({
+      id: `deadline-${t._id || t.id}-${i}`,
+      type: 'deadline',
+      title: `${t.title} due ${t.dueDate}`,
+      description: `In ${t.projectName || t.project?.name || 'a project'}`,
+      read: false,
+      timestamp: t.dueDate,
+    })),
+    ...tasksFrom.filter((t: any) => t.assignees && t.assignees.includes(userName)).slice(0, 5).map((t: any, i: number) => ({
+      id: `assignment-${t._id || t.id}-${i}`,
+      type: 'assignment',
+      title: `Assigned: ${t.title}`,
+      description: `In ${t.projectName || t.project?.name || 'a project'}`,
+      read: false,
+      timestamp: t.createdAt || t.updatedAt || new Date().toISOString(),
+    })),
   ];
 
-  const notificationItems: NotificationItem[] = [
-    {
-      id: '1',
-      type: 'deadline',
-      title: 'Website Redesign due in 5 days',
-      description: 'Complete remaining tasks to meet deadline',
-      read: false,
-      timestamp: '1 hour ago',
-    },
-    {
-      id: '2',
-      type: 'mention',
-      title: 'You were mentioned by John Doe',
-      description: 'In Backend API Enhancement task comments',
-      read: false,
-      timestamp: '3 hours ago',
-    },
-    {
-      id: '3',
-      type: 'assignment',
-      title: 'New task assigned: "Code Review"',
-      description: 'In Security Audit project',
-      read: false,
-      timestamp: '1 day ago',
-    },
-    {
-      id: '4',
-      type: 'update',
-      title: 'Project update: Database Migration',
-      description: 'Jane Smith marked project as completed',
-      read: true,
-      timestamp: '2 days ago',
-    },
-  ];
+  const [notifications, setNotifications] = useState<NotificationItem[]>(
+    derivedNotifications as NotificationItem[]
+  );
+
+  // Outgoing invites state
+  const [invites, setInvites] = useState<Array<any>>([]);
+  const [loadingInvites, setLoadingInvites] = useState(false);
+  const [deletingInvites, setDeletingInvites] = useState<string[]>([]);
+  // confirmation modal state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<any>(null);
+
+  // simple toast system
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type?: 'success' | 'error' }>>([]);
+  const toastIdRef = useRef(0);
+
+  const pushToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const id = `toast-${++toastIdRef.current}`;
+    setToasts((t) => [...t, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((t) => t.filter((x) => x.id !== id));
+    }, 4500);
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/notifications', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!mounted) return;
+        if (Array.isArray(data.notifications)) {
+          // map server notifications to client shape where necessary
+          const mapped = data.notifications.map((n: any) => ({
+            id: String(n._id || n.id),
+            type: n.type,
+            title: n.title,
+            description: n.description || '',
+            read: !!n.read,
+            timestamp: n.createdAt || n.updatedAt,
+            actionUrl: n.actionUrl,
+          }));
+          setNotifications(mapped);
+        }
+      } catch (err) {
+        // ignore
+      }
+    })();
+
+    // fetch outgoing invites for the current user (inviter)
+    (async () => {
+      try {
+        setLoadingInvites(true);
+        const r = await fetch('/api/invites', { credentials: 'include' });
+        if (!r.ok) { setLoadingInvites(false); return; }
+        const payload = await r.json();
+        if (!mounted) return;
+        setInvites(Array.isArray(payload.invites) ? payload.invites : []);
+      } catch (err) {
+        // ignore
+      } finally {
+        setLoadingInvites(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [tasksFrom]);
+
+
+  // Compute top collaborators from tasks
+  const collaboratorMap: Map<string, { count: number; projects: Set<string> }> = new Map();
+  for (const t of tasksFrom) {
+    const pid = t.projectId || (t.project?._id || t.project?.id);
+    if (!Array.isArray(t.assignees)) continue;
+    for (const a of t.assignees) {
+      const key = String(a);
+      const entry = collaboratorMap.get(key) || { count: 0, projects: new Set<string>() };
+      entry.count += 1;
+      if (pid) entry.projects.add(String(pid));
+      collaboratorMap.set(key, entry);
+    }
+  }
+
+  const topCollaborators = Array.from(collaboratorMap.entries())
+    .map(([name, info]) => ({ name, projects: info.projects.size, contributions: info.count }))
+    .sort((a, b) => b.contributions - a.contributions)
+    .slice(0, 5);
+
 
   const stats = {
     totalProjects: projects.length,
@@ -447,7 +564,7 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
   const archived = projects.filter((p) => p.isArchived);
   const nearDeadline = projects.filter((p) => p.daysUntilDeadline && p.daysUntilDeadline <= 7);
   const favorite = projects.filter((p) => p.isFavorite);
-  const unreadNotifications = notificationItems.filter((n) => !n.read);
+  const unreadNotifications = notifications.filter((n) => !n.read);
 
   const handleCreateProject = (projectData: {
     name: string;
@@ -462,6 +579,7 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
         const res = await fetch('/api/projects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             name: projectData.name,
             priority: projectData.priority,
@@ -620,18 +738,50 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
           <div>
             <h3 className="font-semibold text-zinc-900 dark:text-white mb-3 text-sm">Top Collaborators</h3>
             <div className="space-y-3">
-              {[
-                { name: 'John Doe', projects: 5, contributions: 142 },
-                { name: 'Jane Smith', projects: 4, contributions: 98 },
-                { name: 'Sarah Chen', projects: 3, contributions: 67 },
-              ].map((collab, idx) => (
-                <div key={idx} className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+              {topCollaborators.length === 0 && (
+                <div className="text-xs text-zinc-600 dark:text-zinc-400">No collaborators yet</div>
+              )}
+              {topCollaborators.map((collab, idx) => (
+                <div key={collab.name} className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                   <h4 className="font-medium text-zinc-900 dark:text-white text-sm">{collab.name}</h4>
                   <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-2">
                     {collab.projects} projects • {collab.contributions} contributions
                   </p>
                 </div>
               ))}
+            </div>
+            {/* Outgoing Invites Panel */}
+            <div className="mt-4">
+              <h4 className="font-semibold text-zinc-900 dark:text-white mb-2 text-sm">Outgoing Invites</h4>
+              <div className="space-y-2">
+                {loadingInvites && <div className="text-xs text-zinc-600 dark:text-zinc-400">Loading invites…</div>}
+                {!loadingInvites && invites.length === 0 && (
+                  <div className="text-xs text-zinc-600 dark:text-zinc-400">No outgoing invites</div>
+                )}
+                {invites.map((inv: any) => (
+                  <div key={inv._id || inv.id} className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-zinc-900 dark:text-white">{inv.email}</div>
+                      <div className="text-xs text-zinc-600 dark:text-zinc-400">{inv.projectName || (inv.project && inv.project.name) || '—'}</div>
+                      <div className="text-xs text-zinc-500 mt-1">{inv.accepted ? 'Accepted' : 'Pending'} • {inv.createdAt ? new Date(inv.createdAt).toLocaleString() : ''}</div>
+                    </div>
+                    <div className="ml-4 flex items-center gap-2">
+                      {!inv.accepted && (
+                        <button
+                          onClick={() => {
+                            setConfirmTarget(inv);
+                            setConfirmOpen(true);
+                          }}
+                          className="px-3 py-1 bg-red-600 text-white rounded-md text-xs hover:bg-red-700 transition-colors"
+                          disabled={deletingInvites.includes(String(inv._id || inv.id))}
+                        >
+                          {deletingInvites.includes(String(inv._id || inv.id)) ? 'Cancelling…' : 'Cancel'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -755,6 +905,54 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
           </section>
         )}
       </div>
+
+        {/* Confirmation Modal */}
+        {confirmOpen && confirmTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Cancel Invite</h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Are you sure you want to cancel the invite to <strong className="text-zinc-900 dark:text-white">{confirmTarget.email}</strong>?</p>
+              <div className="flex justify-end gap-3 mt-4">
+                <button className="px-4 py-2 border rounded text-zinc-700" onClick={() => { setConfirmOpen(false); setConfirmTarget(null); }}>No</button>
+                <button className="px-4 py-2 bg-red-600 text-white rounded" onClick={async () => {
+                  const inv = confirmTarget;
+                  setConfirmOpen(false);
+                  setConfirmTarget(null);
+                  const id = String(inv._id || inv.id);
+                  if (deletingInvites.includes(id)) return;
+                  setDeletingInvites((s) => [...s, id]);
+                  // optimistic remove
+                  setInvites((prev) => prev.filter((i) => String(i._id || i.id) !== id));
+                  try {
+                    const res = await fetch(`/api/invites/${id}`, { method: 'DELETE', credentials: 'include' });
+                    if (!res.ok) {
+                      const payload = await res.json().catch(() => null);
+                      setInvites((prev) => [...prev, inv]);
+                      pushToast('Failed to cancel invite', 'error');
+                      console.warn('Failed to cancel invite', payload);
+                    } else {
+                      pushToast('Invite cancelled', 'success');
+                    }
+                  } catch (err) {
+                    setInvites((prev) => [...prev, inv]);
+                    pushToast('Network error while cancelling invite', 'error');
+                  } finally {
+                    setDeletingInvites((s) => s.filter((x) => x !== id));
+                  }
+                }}>Yes, cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Toasts */}
+        <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-60">
+          {toasts.map((t) => (
+            <div key={t.id} className={`px-4 py-2 rounded shadow text-white ${t.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+              {t.message}
+            </div>
+          ))}
+        </div>
     </div>
   );
 }

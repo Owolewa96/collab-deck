@@ -13,7 +13,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/db';
-import User from '@/models/User';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_in_production';
 
@@ -34,6 +33,8 @@ export async function POST(req: NextRequest) {
     }
 
     // === Find user by email ===
+    // Dynamically import User model to avoid top-level any typing issues
+    const User = (await import('@/models/User')).default as any;
     const user = await User.findByEmail(email);
     if (!user) {
       return NextResponse.json(

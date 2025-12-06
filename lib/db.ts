@@ -16,7 +16,8 @@ if (!MONGODB_URI) {
 /**
  * Global reference to cache the connection across serverless invocations.
  */
-let cached = global.mongoose || { conn: null, promise: null };
+// Use a typed global access to avoid TS errors in serverless environments
+let cached = (global as any).mongoose || { conn: null, promise: null };
 
 /**
  * Connect to MongoDB.
@@ -29,7 +30,7 @@ async function connectDB() {
 
   if (!cached.promise) {
     cached.promise = mongoose
-      .connect(MONGODB_URI, {
+      .connect(MONGODB_URI as string, {
         bufferCommands: false,
       })
       .then((mongooseInstance) => {
@@ -57,8 +58,9 @@ async function connectDB() {
 }
 
 // Store in global for serverless environments
+// Store in global for serverless environments
 if (typeof global !== 'undefined') {
-  global.mongoose = cached;
+  (global as any).mongoose = cached;
 }
 
 export default connectDB;

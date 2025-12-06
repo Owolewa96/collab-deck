@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface Task {
   id: string;
@@ -19,57 +19,47 @@ interface Task {
 export default function TasksPage() {
   const [filter, setFilter] = useState<'all' | 'assigned' | 'created' | 'overdue'>('all');
 
-  const [tasks] = useState<Task[]>([
-    {
-      id: 't1',
-      title: 'Fix login form validation',
-      projectId: '1',
-      projectName: 'Website Redesign',
-      status: 'in-progress',
-      priority: 'high',
-      assignees: ['you@example.com', 'john@example.com'],
-      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      createdBy: 'you@example.com',
-      createdAt: new Date().toISOString().split('T')[0],
-    },
-    {
-      id: 't2',
-      title: 'Update API documentation',
-      projectId: '3',
-      projectName: 'Backend API Enhancement',
-      status: 'todo',
-      priority: 'medium',
-      assignees: ['sarah@example.com'],
-      dueDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      createdBy: 'john@example.com',
-      createdAt: new Date().toISOString().split('T')[0],
-    },
-    {
-      id: 't3',
-      title: 'Design dashboard layout',
-      projectId: '2',
-      projectName: 'Mobile App Development',
-      status: 'done',
-      priority: 'low',
-      assignees: ['you@example.com'],
-      createdBy: 'jane@example.com',
-      createdAt: new Date().toISOString().split('T')[0],
-    },
-    {
-      id: 't4',
-      title: 'Review code submission',
-      projectId: '5',
-      projectName: 'Security Audit',
-      status: 'todo',
-      priority: 'critical',
-      assignees: ['john@example.com', 'you@example.com'],
-      dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      createdBy: 'sarah@example.com',
-      createdAt: new Date().toISOString().split('T')[0],
-    },
-  ]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [currentUser, setCurrentUser] = useState<string>('');
+  const [collaborators, setCollaborators] = useState<string[]>([]);
 
-  const currentUser = 'you@example.com';
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/user/tasks', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!mounted) return;
+
+        const serverTasks = Array.isArray(data.tasks)
+          ? data.tasks.map((t: any) => ({
+              id: t._id || t.id,
+              title: t.title,
+              projectId: t.projectId,
+              projectName: t.projectName || t.project?.name || 'Project',
+              status: t.status || 'todo',
+              priority: t.priority || 'medium',
+              assignees: Array.isArray(t.assignees) ? t.assignees.map(String) : [],
+              dueDate: t.dueDate ? new Date(t.dueDate).toISOString().split('T')[0] : undefined,
+              createdBy: t.createdBy || t.creator || '',
+              createdAt: t.createdAt,
+            }))
+          : [];
+
+        setTasks(serverTasks);
+        if (data.currentUser) setCurrentUser(data.currentUser);
+        if (Array.isArray(data.collaborators)) setCollaborators(data.collaborators.map(String));
+      } catch (err) {
+        // ignore
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Quick workflow summary (moved from Dashboard Tasks & Workflow)
   const todoCount = tasks.filter((t) => t.status === 'todo').length;

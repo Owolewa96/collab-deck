@@ -12,7 +12,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcryptjs from 'bcryptjs';
 import connectDB from '@/lib/db';
-import User from '@/models/User';
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,6 +44,8 @@ export async function POST(req: NextRequest) {
     }
 
     // === Check if user already exists ===
+    // Dynamically import User model to avoid top-level any typing issues
+    const User = (await import('@/models/User')).default as any;
     const existingUser = await User.findByEmail(email);
     if (existingUser) {
       return NextResponse.json(

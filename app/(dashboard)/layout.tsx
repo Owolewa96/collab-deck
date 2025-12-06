@@ -1,6 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useCallback } from 'react';
 
 export default function DashboardLayout({
   children,
@@ -24,6 +27,12 @@ export default function DashboardLayout({
           >
             Dashboard
           </Link>
+         <Link
+            href="/notifications"
+            className="block px-4 py-2 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+          >
+            Notification
+          </Link>
           <Link
             href="/projects"
             className="block px-4 py-2 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
@@ -45,7 +54,19 @@ export default function DashboardLayout({
         </nav>
 
         <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-700">
-          <button className="w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition">
+          <button
+            onClick={async () => {
+              try {
+                await fetch('/api/auth/signout', { method: 'POST', credentials: 'include' });
+              } catch (err) {
+                // ignore
+              }
+              // redirect to home
+              const router = useRouter();
+              router.push('/');
+            }}
+            className="w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition"
+          >
             Sign out
           </button>
         </div>

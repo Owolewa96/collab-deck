@@ -12,7 +12,6 @@ export interface IProject extends Document {
   priority: 'low' | 'medium' | 'high' | 'critical';
   startDate: Date | null;
   endDate: Date | null;
-
   daysUntilDeadline?: number | null;
 }
 

@@ -12,6 +12,7 @@ import connectDB from '@/lib/db';
 import Project from '@/models/Project';
 // @ts-ignore
 import ProjectUser from '@/models/ProjectUser';
+import { notifyMultiple } from '@/lib/notify';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_in_production';
 
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     const token = req.cookies.get('authToken')?.value;
     let userId = null;
     let userEmail = null;
-
+    
     if (token) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,6 +95,24 @@ export async function POST(req: NextRequest) {
         console.warn('Failed to create ProjectUser preference:', err);
         /* eslint-enable no-console */
       }
+    }
+
+    // Notify collaborators (excluding the creator) that they've been added to a project
+    try {
+      const recipients = Array.isArray(created.collaborators) ? created.collaborators : [];
+      const filtered = recipients.filter((r: any) => String(r) !== String(userId) && String(r) !== String(userEmail));
+      if (filtered.length > 0) {
+        await notifyMultiple(filtered, {
+          type: 'invite',
+          title: `Added to project: ${created.name}`,
+          description: `${created.name} — you were added as a collaborator`,
+          createdBy: userId,
+          projectId: created._id,
+          actionUrl: `/projects/${created._id}`,
+        });
+      }
+    } catch (err) {
+      console.error('project collaborator notification error:', err);
     }
 
     return NextResponse.json({ message: 'Project created', project: created }, { status: 201 });

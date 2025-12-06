@@ -5,6 +5,7 @@ import connectDB from '@/lib/db';
 import Task from '@/models/Task';
 // @ts-ignore
 import Project from '@/models/Project';
+import { notifyMultiple } from '@/lib/notify';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_in_production';
 
@@ -62,6 +63,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // capture previous status to create notifications on change
+    const prevStatus = task.status;
+
     // Update allowed fields
     if (status !== undefined) task.status = status;
     if (priority !== undefined) task.priority = priority;
@@ -70,6 +74,33 @@ export async function PUT(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updated = await (task as any).save?.() || task;
+
+    // If task was just completed, notify assignees and project creator (excluding actor)
+    try {
+      if (status === 'done' && prevStatus !== 'done') {
+        const recipientsSet = new Set<any>();
+        if (Array.isArray(updated.assignees)) {
+          for (const a of updated.assignees) recipientsSet.add(a);
+        }
+        if (project?.creator) recipientsSet.add(project.creator);
+
+        const recipients = Array.from(recipientsSet).filter((r) => String(r) !== String(userId) && String(r) !== String(userEmail));
+
+        if (recipients.length > 0) {
+          await notifyMultiple(recipients, {
+            type: 'update',
+            title: `Task completed: ${updated.title}`,
+            description: `Task "${updated.title}" in ${project.name || 'a project'} was marked complete`,
+            createdBy: userId,
+            projectId: project._id,
+            taskId: updated._id,
+            actionUrl: `/projects/${project._id}/tasks/${updated._id}`,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('task status notification error:', err);
+    }
 
     return NextResponse.json({ message: 'Task updated', task: updated }, { status: 200 });
   } catch (err: any) {
