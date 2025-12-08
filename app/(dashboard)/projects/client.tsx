@@ -444,19 +444,30 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
         </div>
       </div>
 
-      <div className="mt-4 flex justify-end gap-2">
-        <Link href={`/projects/${project._id}`} className="px-3 py-2 text-sm rounded border hover:bg-zinc-50">Open</Link>
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex gap-6">
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-700 dark:text-zinc-300">{project.collaborators.length + 1} Task(s)</span>
+          </div>
+        </div>
+
+      </div>
+
+        <Link href={`/projects/${project._id}`} className="px-3 py-2 text-sm rounded hover:bg-zinc-50">
+      <div className="relative mt-4 flex justify-end gap-2">
         <button
           type="button"
           onClick={(e) => {
+             e.preventDefault();
             e.stopPropagation();
             openTaskModal(project);
           }}
-          className="px-3 py-2 text-sm rounded bg-emerald-600 text-white hover:bg-emerald-700"
+          className="absolute px-3 py-2 text-sm rounded bg-emerald-600 text-white hover:bg-emerald-700"
         >
           Add Task
         </button>
       </div>
+      </Link>
     </div>
   );
 
