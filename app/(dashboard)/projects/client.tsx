@@ -422,7 +422,9 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
   };
 
   const ProjectCard = ({ project }: { project: Project }) => (
-    <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 hover:shadow-lg hover:border-emerald-500 dark:hover:border-emerald-500 transition-all p-6">
+    <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 hover:shadow-lg hover:border-emerald-500 dark:hover:border-emerald-500 transition-all p-6'>
+    <Link href={`/projects/${project._id}`}>
+    <div className="">
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">{project.name}</h3>
@@ -444,31 +446,25 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex gap-6">
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-700 dark:text-zinc-300">{project.collaborators.length + 1} Task(s)</span>
-          </div>
-        </div>
+       
+    </div>
+     
 
-      </div>
-
-        <Link href={`/projects/${project._id}`} className="px-3 py-2 text-sm rounded hover:bg-zinc-50">
-      <div className="relative mt-4 flex justify-end gap-2">
+      {/* <div className="relative mt-4 w-max flex justify-self-end gap-2">
         <button
           type="button"
           onClick={(e) => {
-             e.preventDefault();
             e.stopPropagation();
+            e.preventDefault();
             openTaskModal(project);
           }}
-          className="absolute px-3 py-2 text-sm rounded bg-emerald-600 text-white hover:bg-emerald-700"
+          className="px-3 py-2 text-sm rounded bg-emerald-600 text-white hover:bg-emerald-700"
         >
           Add Task
         </button>
+      </div> */}
+     </Link>
       </div>
-      </Link>
-    </div>
   );
 
   return (
