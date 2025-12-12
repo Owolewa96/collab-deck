@@ -685,7 +685,7 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
       <section>
         <SectionHeader title="📊 Your Analytics" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <StatCard title="Projects Created" value={userAnalytics.projectsCreated} subtitle="All time" color="from-emerald-500 to-emerald-600" />
+          <StatCard title="Projects Created" value={initialProjects.length} subtitle="All time" color="from-emerald-500 to-emerald-600" />
           <StatCard title="Tasks Completed" value={userAnalytics.tasksCompleted} subtitle="Overall" color="from-blue-500 to-blue-600" />
           <StatCard title="Contributions" value={userAnalytics.contributions} subtitle="Team contributions" color="from-purple-500 to-purple-600" />
           <StatCard title="Productivity Score" value={`${userAnalytics.productivityScore}%`} subtitle="Performance rating" color="from-orange-500 to-orange-600" />
