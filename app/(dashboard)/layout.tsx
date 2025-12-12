@@ -10,6 +10,9 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+
+     const router = useRouter();
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black flex">
       {/* Sidebar */}
@@ -58,12 +61,12 @@ export default function DashboardLayout({
             onClick={async () => {
               try {
                 await fetch('/api/auth/signout', { method: 'POST', credentials: 'include' });
+                router.push('/');
               } catch (err) {
                 // ignore
               }
               // redirect to home
-              const router = useRouter();
-              router.push('/');
+           
             }}
             className="w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition"
           >
