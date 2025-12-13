@@ -23,6 +23,7 @@ interface ProjectData {
   recentlyViewed?: boolean;
   viewedAt?: string;
   updatedAt: string;
+  collaborators: [];
 }
 
 export default async function DashboardPage() {
@@ -84,6 +85,7 @@ export default async function DashboardPage() {
             recentlyViewed: prefs.recentlyViewed || false,
             viewedAt: prefs.viewedAt,
             updatedAt: p.updatedAt || new Date().toISOString(),
+            collaborators: p.collaborators || []
           };
         });
       } catch (err) {
