@@ -12,9 +12,46 @@ import connectDB from '@/lib/db';
 import Project from '@/models/Project';
 // @ts-ignore
 import ProjectUser from '@/models/ProjectUser';
+// @ts-ignore
+import User from '@/models/User';
 import { notifyMultiple } from '@/lib/notify';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_in_production';
+
+export async function GET(req: NextRequest) {
+  try {
+    const token = req.cookies.get('authToken')?.value;
+    let userId = null;
+    let userEmail = null;
+
+    if (token) {
+      try {
+        const decoded: any = jwt.verify(token, JWT_SECRET);
+        userId = decoded.id;
+        userEmail = decoded.email;
+      } catch (err) {
+        console.error('Token verify failed', err);
+      }
+    }
+
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    await connectDB();
+
+    // Fetch projects where user is creator or collaborator
+    const projects = await (Project as any).find({
+      $or: [
+        { creator: userId },
+        { collaborators: { $in: [userId, userEmail] } }
+      ]
+    }).populate('collaborators', 'name _id').sort({ updatedAt: -1 });
+
+    return NextResponse.json({ projects }, { status: 200 });
+  } catch (err) {
+    console.error('Get projects error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,12 +94,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Project name is required.' }, { status: 400 });
     }
 
+    // Convert collaborator emails to ObjectIds
+    let collaboratorIds: any[] = [];
+    if (collaborators && Array.isArray(collaborators)) {
+      for (const email of collaborators) {
+        if (typeof email === 'string' && email.includes('@')) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const user = await (User as any).findOne({ email: email.toLowerCase() });
+          if (user) {
+            collaboratorIds.push(user._id);
+          }
+        }
+      }
+    }
+    // Add creator as collaborator
+    if (userId && !collaboratorIds.includes(userId)) {
+      collaboratorIds.push(userId);
+    }
+
     const projectData = {
       name: name.trim(),
       description: description || '',
       status: 'active',
       creator: userId,
-      collaborators: collaborators || [],
+      collaborators: collaboratorIds,
       priority: priority || 'medium',
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,

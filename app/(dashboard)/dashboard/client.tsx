@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
 
 interface CreateProjectModalProps {
@@ -196,6 +196,12 @@ function CreateProjectModal({ isOpen, onClose, onSubmit }: CreateProjectModalPro
   );
 }
 
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+}
+
 interface Project {
   _id: string;
   name: string;
@@ -205,6 +211,7 @@ interface Project {
   priority?: string;
   startDate?: string;
   endDate?: string;
+  collaborators: User[];
   // User preferences (from ProjectUser model)
   isPinned?: boolean;
   isArchived?: boolean;
@@ -434,24 +441,23 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
   }, [tasksFrom]);
 
 
-  // Compute top collaborators from tasks
-  const collaboratorMap: Map<string, { count: number; projects: Set<string> }> = new Map();
-  for (const t of tasksFrom) {
-    const pid = t.projectId || (t.project?._id || t.project?.id);
-    if (!Array.isArray(t.assignees)) continue;
-    for (const a of t.assignees) {
-      const key = String(a);
-      const entry = collaboratorMap.get(key) || { count: 0, projects: new Set<string>() };
-      entry.count += 1;
-      if (pid) entry.projects.add(String(pid));
-      collaboratorMap.set(key, entry);
-    }
-  }
-
-  const topCollaborators = Array.from(collaboratorMap.entries())
-    .map(([name, info]) => ({ name, projects: info.projects.size, contributions: info.count }))
-    .sort((a, b) => b.contributions - a.contributions)
-    .slice(0, 5);
+  // Compute top collaborators from projects
+  const topCollaborators = useMemo(() => {
+    const collabMap = new Map();
+    // Only consider projects created by the user
+    const userProjects = projects.filter(p => p.creator === userName);
+    userProjects.forEach(project => {
+      project.collaborators.forEach((collab: any) => {
+        if (collab.name !== userName) { // Exclude self if somehow included
+          if (!collabMap.has(collab._id)) {
+            collabMap.set(collab._id, { name: collab.name, projects: 0 });
+          }
+          collabMap.get(collab._id).projects += 1;
+        }
+      });
+    });
+    return Array.from(collabMap.values()).sort((a, b) => b.projects - a.projects);
+  }, [projects, userName]);
 
 
   const stats = {

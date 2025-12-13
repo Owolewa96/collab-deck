@@ -3,6 +3,36 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+}
+
+interface Project {
+  _id: string;
+  name: string;
+  description: string;
+  status: 'active' | 'archived' | 'completed';
+  creator: string;
+  priority?: string;
+  startDate?: string;
+  endDate?: string;
+  collaborators: User[];
+  // User preferences (from ProjectUser model)
+  isPinned?: boolean;
+  isArchived?: boolean;
+  isFavorite?: boolean;
+  isContributing?: boolean;
+  recentlyViewed?: boolean;
+  viewedAt?: string;
+  // Computed fields
+  taskCount?: number;
+  teamMembers?: number;
+  daysUntilDeadline?: number;
+  updatedAt: string;
+}
+
 interface Task {
   id: string;
   title: string;
@@ -28,29 +58,30 @@ export default function TasksPage() {
 
     (async () => {
       try {
-        const res = await fetch('/api/user/tasks', { credentials: 'include' });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!mounted) return;
-
-        const serverTasks = Array.isArray(data.tasks)
-          ? data.tasks.map((t: any) => ({
-              id: t._id || t.id,
-              title: t.title,
-              projectId: t.projectId,
-              projectName: t.projectName || t.project?.name || 'Project',
-              status: t.status || 'todo',
-              priority: t.priority || 'medium',
-              assignees: Array.isArray(t.assignees) ? t.assignees.map(String) : [],
-              dueDate: t.dueDate ? new Date(t.dueDate).toISOString().split('T')[0] : undefined,
-              createdBy: t.createdBy || t.creator || '',
-              createdAt: t.createdAt,
-            }))
-          : [];
-
-        setTasks(serverTasks);
-        if (data.currentUser) setCurrentUser(data.currentUser);
-        if (Array.isArray(data.collaborators)) setCollaborators(data.collaborators.map(String));
+        // Fetch tasks
+        const tasksRes = await fetch('/api/user/tasks', { credentials: 'include' });
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json();
+          if (mounted) {
+            const serverTasks = Array.isArray(tasksData.tasks)
+              ? tasksData.tasks.map((t: any) => ({
+                  id: t._id || t.id,
+                  title: t.title,
+                  projectId: t.projectId,
+                  projectName: t.projectName || t.project?.name || 'Project',
+                  status: t.status || 'todo',
+                  priority: t.priority || 'medium',
+                  assignees: Array.isArray(t.assignees) ? t.assignees.map(String) : [],
+                  dueDate: t.dueDate ? new Date(t.dueDate).toISOString().split('T')[0] : undefined,
+                  createdBy: t.createdBy || t.creator || '',
+                  createdAt: t.createdAt,
+                }))
+              : [];
+            setTasks(serverTasks);
+            if (tasksData.currentUser) setCurrentUser(tasksData.currentUser);
+            if (Array.isArray(tasksData.collaborators)) setCollaborators(tasksData.collaborators.map(String));
+          }
+        }
       } catch (err) {
         // ignore
       }
@@ -79,7 +110,7 @@ export default function TasksPage() {
       default:
         return tasks.filter((t) => t.assignees.includes(currentUser) || t.createdBy === currentUser);
     }
-  }, [filter, tasks]);
+  }, [filter, tasks, currentUser]);
 
   const PriorityBadge = ({ p }: { p: Task['priority'] }) => {
     const classes: Record<Task['priority'], string> = {
@@ -162,7 +193,7 @@ export default function TasksPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((task) => (
+        {filtered?.map((task) => (
           <TaskCard key={task.id} task={task} />
         ))}
       </div>

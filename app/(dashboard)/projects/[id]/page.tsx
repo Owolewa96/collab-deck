@@ -20,6 +20,12 @@ import { CSS } from '@dnd-kit/utilities';
 import { useSortable } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+}
+
 interface Task {
   _id: string;
   title: string;
@@ -43,26 +49,28 @@ function TaskModal({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  collaborators: string[];
-  onSubmit: (data: { title: string; description?: string; dueDate?: string; assignees: string[] }) => void;
+  collaborators: User[];
+  onSubmit: (data: { title: string; description?: string; dueDate?: string; assignees: string[]; priority: string }) => void;
 }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [assignees, setAssignees] = useState<string[]>([]);
+  const [priority, setPriority] = useState('medium');
 
-  const toggleAssignee = (email: string) => {
-    setAssignees((prev) => (prev.includes(email) ? prev.filter((a) => a !== email) : [...prev, email]));
+  const toggleAssignee = (userId: string) => {
+    setAssignees((prev) => (prev.includes(userId) ? prev.filter((a) => a !== userId) : [...prev, userId]));
   };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    onSubmit({ title: title.trim(), description: description ?? '', dueDate: dueDate || undefined, assignees });
+    onSubmit({ title: title.trim(), description: description ?? '', dueDate: dueDate || undefined, assignees, priority });
     setTitle('');
     setDescription('');
     setDueDate('');
     setAssignees([]);
+    setPriority('medium');
   };
 
   if (!isOpen) return null;
@@ -81,6 +89,15 @@ function TaskModal({
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white" rows={3} />
           </div>
           <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Priority</label>
+            <select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full px-3 py-2 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Due Date</label>
             <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-3 py-2 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white" />
           </div>
@@ -88,9 +105,9 @@ function TaskModal({
             <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Assign To</div>
             <div className="space-y-1 max-h-40 overflow-y-auto">
               {collaborators.map((c) => (
-                <label key={c} className="flex items-center gap-2">
-                  <input type="checkbox" checked={assignees.includes(c)} onChange={() => toggleAssignee(c)} />
-                  <span className="text-sm text-zinc-900 dark:text-white">{c}</span>
+                <label key={c._id} className="flex items-center gap-2">
+                  <input type="checkbox" checked={assignees.includes(c._id)} onChange={() => toggleAssignee(c._id)} />
+                  <span className="text-sm text-zinc-900 dark:text-white">{c.name}</span>
                 </label>
               ))}
             </div>
@@ -195,7 +212,7 @@ export default function ProjectDetailPage({
   const { id } = use(params);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [collaborators, setCollaborators] = useState<string[]>([]);
+  const [collaborators, setCollaborators] = useState<User[]>([]);
   const [projectData, setProjectData] = useState<any>(null);
 
   // Fetch project data and tasks
@@ -244,58 +261,60 @@ export default function ProjectDetailPage({
     };
   }, [id]);
 
-  const handleCreateTask = async (taskData: { title: string; description?: string; dueDate?: string; assignees: string[] }) => {
+  const handleCreateTask = (taskData: { title: string; description?: string; dueDate?: string; assignees: string[]; priority: string }) => {
     // Optimistic update: add task immediately
     const optimisticTask: Task = {
       _id: `temp-${Date.now()}`,
       title: taskData.title,
       columnId: 'todo',
-      priority: 'medium',
+      priority: taskData.priority as 'high' | 'medium' | 'low',
       status: 'todo',
     };
     
     setTasks((prev) => [...prev, optimisticTask]);
     setIsTaskModalOpen(false);
 
-    try {
-      const res = await fetch('/api/tasks', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: id,
-          title: taskData.title,
-          description: taskData.description || '',
-          dueDate: taskData.dueDate,
-          assignees: taskData.assignees,
-          priority: 'medium',
-          status: 'todo',
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        // Replace the temporary task with the real one from server
-        setTasks((prev) =>
-          prev.map((t) =>
-            t._id === optimisticTask._id
-              ? {
-                  _id: data.task._id || data.task.id,
-                  title: data.task.title,
-                  columnId: 'todo',
-                  priority: data.task.priority || 'medium',
-                  status: data.task.status || 'todo',
-                }
-              : t
-          )
-        );
-      } else {
-        // Remove optimistic task if request failed
+    (async () => {
+      try {
+        const res = await fetch('/api/tasks', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: id,
+            title: taskData.title,
+            description: taskData.description || '',
+            dueDate: taskData.dueDate,
+            assignees: taskData.assignees,
+            priority: taskData.priority,
+            status: 'todo',
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Replace the temporary task with the real one from server
+          setTasks((prev) =>
+            prev.map((t) =>
+              t._id === optimisticTask._id
+                ? {
+                    _id: data.task._id || data.task.id,
+                    title: data.task.title,
+                    columnId: 'todo',
+                    priority: data.task.priority || 'medium',
+                    status: data.task.status || 'todo',
+                  }
+                : t
+            )
+          );
+        } else {
+          // Remove optimistic task if request failed
+          setTasks((prev) => prev.filter((t) => t._id !== optimisticTask._id));
+        }
+      } catch (err) {
+        // Remove optimistic task on error
         setTasks((prev) => prev.filter((t) => t._id !== optimisticTask._id));
       }
-    } catch (err) {
-      // Remove optimistic task on error
-      setTasks((prev) => prev.filter((t) => t._id !== optimisticTask._id));
-    }
+    })();
   };
 
   const [columns] = useState<Column[]>([
