@@ -690,7 +690,6 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
           <StatCard title="Contributions" value={userAnalytics.contributions} subtitle="Team contributions" color="from-purple-500 to-purple-600" />
           <StatCard title="Productivity Score" value={`${userAnalytics.productivityScore}%`} subtitle="Performance rating" color="from-orange-500 to-orange-600" />
           <StatCard title="Avg Completion Time" value={userAnalytics.avgCompletionTime} subtitle="Per task" color="from-pink-500 to-pink-600" />
-          <StatCard title="Current Streak" value={`${userAnalytics.streak} days`} subtitle="Active participation" color="from-red-500 to-red-600" />
         </div>
       </section>
 
