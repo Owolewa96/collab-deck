@@ -55,8 +55,8 @@ export async function GET(
     for (const c of project.collaborators) {
       const user =
         typeof c === 'string' && c.includes('@')
-          ? await User.findOne({ email: c.toLowerCase() })
-          : await User.findById(c);
+          ? await User?.findOne({ email: c.toLowerCase() })
+          : await User?.findById(c);
 
       if (user) {
         collaborators.push({
