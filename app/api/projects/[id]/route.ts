@@ -7,15 +7,13 @@ import User from '@/models/User';
 const JWT_SECRET =
   process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_in_production';
 
-type RouteContext = {
-  params: {
-    id: string;
-  };
-};
-
-export async function GET(req: NextRequest, context: RouteContext) {
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = context.params; // ✅ destructure here
+    // ✅ params is async now
+    const { id } = await context.params;
 
     const token = req.cookies.get('authToken')?.value;
     let userId: string | null = null;
