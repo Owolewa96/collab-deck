@@ -23,7 +23,7 @@ interface ProjectData {
   recentlyViewed?: boolean;
   viewedAt?: string;
   updatedAt: string;
-  collaborators: [];
+  collaborators: any[];
 }
 
 export default async function DashboardPage() {
@@ -67,7 +67,6 @@ export default async function DashboardPage() {
         );
 
         projects = dbProjects.map((p: any) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const prefs: any = prefsMap.get(p._id.toString()) || {};
           return {
             _id: p._id?.toString() || p.id,
