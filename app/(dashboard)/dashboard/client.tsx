@@ -289,7 +289,7 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
               startDate: p.startDate || undefined,
               endDate: p.endDate || undefined,
               updatedAt: p.updatedAt || new Date().toISOString(),
-              collaborators: Array.isArray(p.collaborators)
+              collaborators: p.collaborators
             }))
           );
         }
@@ -578,7 +578,7 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
     priority: string;
     startDate: string;
     endDate: string;
-    collaborators: [];
+    collaborators: string[];
   }) => {
     // Try creating project in backend first, fallback to local state on failure
     (async () => {
@@ -622,7 +622,6 @@ export default function DashboardClient({ userName, initialProjects }: Dashboard
             teamMembers: createdProject.teamMembersCount ?? (projectData.collaborators.length + 1),
             updatedAt: createdProject.updatedAt || new Date().toISOString().split('T')[0],
             daysUntilDeadline: undefined,
-            collaborators: createdProject.collaborators || [],
           } as Project;
 
           setProjects((prev) => [...prev, projectToAdd]);
