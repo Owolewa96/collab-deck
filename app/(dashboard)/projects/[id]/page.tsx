@@ -19,6 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useSortable } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
+import { log } from 'console';
 
 interface User {
   _id: string;
@@ -110,6 +111,7 @@ function TaskModal({
                   <span className="text-sm text-zinc-900 dark:text-white">{c.name}</span>
                 </label>
               ))}
+
             </div>
           </div>
           <div className="flex gap-2 justify-end pt-4">
@@ -220,18 +222,24 @@ export default function ProjectDetailPage({
     let cancelled = false;
     
     const fetchProjectData = async () => {
+      
       try {
         const res = await fetch(`/api/projects/${id}`, { credentials: 'include' });
         if (!res.ok) return;
         const data = await res.json();
+        console.log(data);
         if (!cancelled) {
           setProjectData(data.project);
           setCollaborators(data.project.collaborators || []);
+          
         }
+
       } catch (err) {
         // ignore
       }
     };
+
+
 
     const fetchTasks = async () => {
       try {

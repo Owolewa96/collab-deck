@@ -41,9 +41,7 @@ export async function GET(
 
     const isCreator = project.creator.toString() === userId;
     const isCollaborator = project.collaborators.some((c: any) =>
-      typeof c === 'string'
-        ? c.toLowerCase() === userId
-        : c.toString() === userId
+      typeof c === 'string' ? c.toLowerCase() === userId : c.toString() === userId
     );
 
     if (!isCreator && !isCollaborator) {
@@ -67,7 +65,7 @@ export async function GET(
       }
     }
 
-    const projectData = { ...project.toObject(), collaborators };
+    const projectData = { ...project.toObject(), ...collaborators };
 
     return NextResponse.json({ project: projectData }, { status: 200 });
   } catch (err) {
