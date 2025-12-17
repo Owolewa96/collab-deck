@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 interface CreateProjectModalProps {
@@ -25,8 +25,17 @@ function CreateProjectModal({ isOpen, onClose, onSubmit }: CreateProjectModalPro
   const [collaboratorInput, setCollaboratorInput] = useState('');
   const [collaborators, setCollaborators] = useState<string[]>([]);
 
-  const handleAddCollaborator = () => {
+  const handleAddCollaborator = async () => {
     const email = collaboratorInput.trim();
+
+    const res = await fetch("/api/users/exists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+  const data = await res.json();
+   console.log(data)
     if (email && !collaborators.includes(email)) {
       setCollaborators([...collaborators, email]);
       setCollaboratorInput('');
