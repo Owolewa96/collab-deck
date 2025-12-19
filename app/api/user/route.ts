@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     // Dynamic import to avoid model re-compilation issues
     const User = (await import("@/models/User")).default as any;
-
+     // const User = (await import("@/models/User")).default as any
     const user = await User.findOne({ email })
       .select("_id name email")
       .lean();

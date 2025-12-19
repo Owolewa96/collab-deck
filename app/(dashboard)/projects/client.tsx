@@ -28,7 +28,7 @@ function CreateProjectModal({ isOpen, onClose, onSubmit }: CreateProjectModalPro
   const handleAddCollaborator = async () => {
     const email = collaboratorInput.trim();
 
-    const res = await fetch("/api/users/exists", {
+    const res = await fetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
@@ -37,6 +37,7 @@ function CreateProjectModal({ isOpen, onClose, onSubmit }: CreateProjectModalPro
   const data = await res.json();
    console.log(data)
     if (email && !collaborators.includes(email)) {
+      //if data.user exists then we'll add user object to the collaborator
       setCollaborators([...collaborators, email]);
       setCollaboratorInput('');
     }

@@ -1,5 +1,3 @@
-
-
 import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
@@ -22,7 +20,6 @@ const UserSchema = new Schema(
       enum: ['user', 'admin'],
       default: 'user',
     },
-    projects: [{ type: Schema.Types.Mixed }], // project ids or objects
     pinnedProjects: [{ type: Schema.Types.Mixed }], // project ids or objects
     archivedProjects: [{ type: Schema.Types.Mixed }], // project ids or objects
     recentActivities: [{type: Schema.Types.Mixed }], // activity log entries
@@ -30,17 +27,11 @@ const UserSchema = new Schema(
   { timestamps: true }
 );
 
-/**
- * Pre-save hook: do NOT hash password here if using bcryptjs in the route.
- * The API route should handle hashing before calling .save().
- * This is just a safety net.
- */
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
     return next();
   }
-  // Password hashing should happen in the signup route
-  // to avoid double-hashing.
+
   next();
 });
 

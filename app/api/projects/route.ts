@@ -1,10 +1,3 @@
-/**
- * POST /api/projects
- *
- * Create a new project in MongoDB using the Project model.
- * Also initializes a ProjectUser document for the creator with default preferences.
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/db';
@@ -100,7 +93,7 @@ export async function POST(req: NextRequest) {
       for (const email of collaborators) {
         if (typeof email === 'string' && email.includes('@')) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const user = await (User as any).findOne({ email: email.toLowerCase() });
+          const user = await (User as any)?.findOne({ email: email.toLowerCase() });
           if (user) {
             collaboratorIds.push(user._id);
           }
