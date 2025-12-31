@@ -6,9 +6,9 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const { email } = await req.json();
+    const { projectId } = await req.json();
 
-    if (!email) {
+    if (!projectId) {
       return NextResponse.json(
         { error: "Enter Email" },
         { status: 400 }
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     // Dynamic import to avoid model re-compilation issues
     const User = (await import("@/models/User")).default as any;
      // const User = (await import("@/models/User")).default as any
-    const user = await User.findOne({ email })
+    const user = await User.findOne({ projectId })
       .select("_id name email")
       .lean();
 

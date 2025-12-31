@@ -224,7 +224,7 @@ export default function ProjectDetailPage({
     const fetchProjectData = async () => {
       
       try {
-        const res = await fetch(`/api/projects/${id}`, { credentials: 'include' });
+        const res = await fetch(`/api/user/`, { credentials: 'include', body: JSON.stringify({ projectId: id }), method: 'POST' });
         if (!res.ok) return;
         const data = await res.json();
         console.log(data);
