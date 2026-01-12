@@ -4,9 +4,4 @@ declare namespace NodeJS {
   }
 }
 
-declare module '@/models/User' {
-  const User: any;
-  export default User;
-}
-
 export {};

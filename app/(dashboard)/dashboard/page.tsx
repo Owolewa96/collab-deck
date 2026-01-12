@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/db';
 import Project from '@/models/Project';
-// import ProjectUser from '@/models/ProjectUser';
+import ProjectUser from '@/models/ProjectUser';
 import DashboardClient from './client';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_in_production';

@@ -5,6 +5,8 @@ import connectDB from '@/lib/db';
 import Project from '@/models/Project';
 import ProjectsClient from './client';
 
+export const dynamic = 'force-dynamic';
+
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_in_production';
 
 interface ProjectData {
